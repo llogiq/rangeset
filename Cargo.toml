@@ -1,0 +1,16 @@
+[package]
+name = "rangeset"
+version = "0.1.0"
+authors = ["Andre Bogus <bogusandre@gmail.com>"]
+description = "A simple generic Range-Set"
+readme = "README.md"
+keywords = ["range", "set"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/llogiq/rangeset"
+
+[lib]
+name = "rangeset"
+path = "src/lib.rs"
+
+[features]
+unstable = []
