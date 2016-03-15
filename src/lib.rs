@@ -174,12 +174,6 @@ impl<T: Ord> Range<T> {
         }
     }
 
-    /// returns a union of both ranges if they touch, the original ranges
-    /// otherwise
-    pub fn union(self, _other: Range<T>) -> UnionResult<T> {
-        unimplemented!();
-    }
-
     fn canonicalize(self) -> Range<T> {
         match self {
             Range::Closed(l, r) =>
@@ -204,20 +198,20 @@ impl<T: Ord> Range<T> {
             (Range::Full, x) | (x, Range::Full) => x,
             (Range::Singleton(s), other) | (other, Range::Singleton(s)) =>
                 if other.contains(&s) { Range::Singleton(s) } else { Range::Empty },
-            
+
             (Range::LeftClosed(sl), Range::LeftClosed(ol)) => Range::LeftClosed(max(sl, ol)),
             (Range::LeftClosed(sl), Range::LeftOpen(ol)) =>
                 if ol < sl { Range::LeftOpen(ol) } else { Range::LeftClosed(sl) },
             (Range::LeftClosed(sl), Range::RightClosed(ou)) => Range::Closed(sl, ou),
             (Range::LeftClosed(sl), Range::RightOpen(ou)) => Range::ClosedOpen(sl, ou),
-            (Range::LeftClosed(sl), Range::ClosedOpen(ol, ou)) => 
+            (Range::LeftClosed(sl), Range::ClosedOpen(ol, ou)) =>
                 Range::ClosedOpen(max(sl, ol), ou),
             (Range::LeftClosed(sl), Range::Closed(ol, ou)) => Range::Closed(max(sl, ol), ou),
             (Range::LeftClosed(sl), Range::OpenClosed(ol, ou)) =>
                 if ol < sl { Range::OpenClosed(ol, ou) } else { Range::Closed(sl, ou) },
             (Range::LeftClosed(sl), Range::Open(ol, ou)) =>
                 if ol < sl { Range::Open(ol, ou) } else { Range::ClosedOpen(sl, ou) },
-            
+
             (Range::LeftOpen(sl), Range::LeftClosed(ol)) =>
                 if sl < ol { Range::LeftOpen(sl) } else { Range::LeftClosed(ol) },
             (Range::LeftOpen(sl), Range::LeftOpen(ol)) => Range::LeftOpen(max(sl, ol)),
@@ -229,7 +223,7 @@ impl<T: Ord> Range<T> {
                 if sl < ol { Range::OpenClosed(sl, ou) } else { Range::Closed(ol, ou) },
             (Range::LeftOpen(sl), Range::OpenClosed(ol, ou)) => Range::OpenClosed(max(sl, ol), ou),
             (Range::LeftOpen(sl), Range::Open(ol, ou)) => Range::Open(max(sl, ol), ou),
-            
+
             (Range::RightClosed(su), Range::LeftClosed(ol)) => Range::Closed(ol, su),
             (Range::RightClosed(su), Range::LeftOpen(ol)) => Range::ClosedOpen(ol, su),
             (Range::RightClosed(su), Range::RightClosed(ou)) => Range::RightClosed(min(su, ou)),
@@ -241,7 +235,7 @@ impl<T: Ord> Range<T> {
             (Range::RightClosed(su), Range::OpenClosed(ol, ou)) => Range::OpenClosed(ol, min(su, ou)),
             (Range::RightClosed(su), Range::Open(ol, ou)) =>
                 if su < ou { Range::OpenClosed(ol, su) } else { Range::Open(ol, ou) },
-            
+
             (Range::RightOpen(su), Range::LeftClosed(ol)) => Range::ClosedOpen(ol, su),
             (Range::RightOpen(su), Range::LeftOpen(ol)) => Range::Open(ol, su),
             (Range::RightOpen(su), Range::RightClosed(ou)) =>
@@ -253,7 +247,7 @@ impl<T: Ord> Range<T> {
             (Range::RightOpen(su), Range::OpenClosed(ol, ou)) =>
                 if ou < su { Range::OpenClosed(ol, ou) } else { Range::Open(ol, su) },
             (Range::RightOpen(su), Range::Open(ol, ou)) => Range::Open(ol, min(su, ou)),
-            
+
             (Range::ClosedOpen(sl, su), Range::LeftClosed(ol)) => Range::ClosedOpen(max(sl, ol), su),
             (Range::ClosedOpen(sl, su), Range::LeftOpen(ol)) =>
                 if sl > ol { Range::ClosedOpen(sl, su) } else { Range::Open(ol, su) },
@@ -274,7 +268,7 @@ impl<T: Ord> Range<T> {
                 let u = min(su, ou);
                 if sl > ol { Range::ClosedOpen(sl, u) } else { Range::Open(ol, u) }
             }
-            
+
             (Range::Closed(sl, su), Range::LeftClosed(ol)) => Range::Closed(max(sl, ol), su),
             (Range::Closed(sl, su), Range::LeftOpen(ol)) =>
                 if sl > ol { Range::Closed(sl, su) } else { Range::OpenClosed(ol, su) },
@@ -295,7 +289,7 @@ impl<T: Ord> Range<T> {
                 if sl > ol {
                     if su < ou { Range::Closed(sl, su) } else { Range::ClosedOpen(sl, ou) }
                 } else if su < ou { Range::OpenClosed(ol, su) } else { Range::Open(ol, ou) },
-            
+
             (Range::OpenClosed(sl, su), Range::LeftClosed(ol)) =>
                 if ol > sl { Range::Closed(ol, su) } else { Range::OpenClosed(sl, su) },
             (Range::OpenClosed(sl, su), Range::LeftOpen(ol)) => Range::OpenClosed(max(sl, ol), su),
@@ -316,7 +310,7 @@ impl<T: Ord> Range<T> {
                 let l = max(sl, ol);
                 if su < ou { Range::OpenClosed(l, su) } else { Range::Open(l, ou) }
             }
-            
+
             (Range::Open(sl, su), Range::LeftClosed(ol)) =>
                 if ol > sl { Range::ClosedOpen(ol, su) } else { Range::Open(sl, su) },
             (Range::Open(sl, su), Range::LeftOpen(ol)) => Range::Open(max(sl, ol), su),
@@ -340,6 +334,33 @@ impl<T: Ord> Range<T> {
         };
         r.canonicalize()
     }
+
+    /// returns a union of both ranges if they touch, the original ranges
+    /// otherwise
+    pub fn union(self, other: Range<T>) -> UnionResult<T> {
+        match(self, other) {
+            (Range::Empty, r) | (r, Range::Empty) => Union(Range::Full),
+            (Range::Full, _) | (_, Range::Full) => Union(Range::Full),
+
+            (Range::Singleton(v), r) | (r, Range::Singleton) =>
+                if r.contains(v) { Union(r) } else { Disjoint(Range::Singleton(v), r) },
+
+            (Range::LeftClosed(sl), Range::LeftClosed(ol)) => Union(Range::LeftClosed(min(sl, ol))),
+            (Range::LeftClosed(sl), Range::LeftOpen(ol)) =>
+                Union(if ol < sl { Range::LeftOpen(ol) } else { Range::LeftClosed(sl) }),
+            (Range::LeftClosed(sl), Range::RightClosed(ou)) => Range::Closed(sl, ou),
+            (Range::LeftClosed(sl), Range::RightOpen(ou)) => Range::ClosedOpen(sl, ou),
+            (Range::LeftClosed(sl), Range::ClosedOpen(ol, ou)) =>
+                Range::ClosedOpen(max(sl, ol), ou),
+            (Range::LeftClosed(sl), Range::Closed(ol, ou)) => Range::Closed(max(sl, ol), ou),
+            (Range::LeftClosed(sl), Range::OpenClosed(ol, ou)) =>
+                if ol < sl { Range::OpenClosed(ol, ou) } else { Range::Closed(sl, ou) },
+            (Range::LeftClosed(sl), Range::Open(ol, ou)) =>
+                if ol < sl { Range::Open(ol, ou) } else { Range::ClosedOpen(sl, ou) },
+
+            _ => unimplemented!()
+        }
+    }
 }
 
 impl<T: Ord> Ord for Range<T> {
@@ -351,7 +372,7 @@ impl<T: Ord> Ord for Range<T> {
             (Cut::None, _) | (_, Cut::Unbounded) => return Ordering::Greater,
             (_, Cut::None) | (Cut::Unbounded, _) => return Ordering::Less,
             (Cut::Included(sl), Cut::Included(ou)) |
-            (Cut::Excluded(sl), Cut::Excluded(ou)) => 
+            (Cut::Excluded(sl), Cut::Excluded(ou)) =>
                 if sl != ou { return sl.cmp(ou) },
             (Cut::Included(sl), Cut::Excluded(ou)) =>
                 return if sl > ou { Ordering::Greater } else { Ordering::Less },
